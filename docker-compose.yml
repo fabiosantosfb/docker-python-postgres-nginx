@@ -1,0 +1,44 @@
+version: '3'
+services: 
+  web:
+      build: .
+      container_name: great
+      volumes: 
+	  - .:/code
+	  - static:/code/static_cdn
+	  - media:/code/media_cdn
+      depends_on: 
+          - postgres
+      expose: 
+          - 8088
+      command: bash -c "python manage.py collectstatic --no-input && python manage.py makemigrations && python manage.py migrate && gunicorn --workers=2 projeto.wsgi -b 0.0.0.0:8088"
+
+  postgres:
+      build: ./postgres
+      restart: unless-stopped
+      expose:
+          - "5432"
+      environment:   # will be used by the init script
+            LC_ALL: C.UTF-8
+            POSTGRES_USER: fabiano
+            POSTGRES_PASSWORD: fabiano
+            POSTGRES_DB: mydb_fabiano
+      volumes:
+          - pgdata:/var/lib/postgresql/data/  
+
+  nginx:
+      restart: always
+      build: ./nginx
+      volumes: 
+          - ./nginx/:/etc/nginx/conf.d
+          - ./logs/:/code/logs
+          - static:/code/static_cdn
+          - media:/code/media_cdn
+      ports: 
+          - "8089:80"
+      links:
+          - web  
+volumes: 
+  pgdata:
+  media:
+  static:
